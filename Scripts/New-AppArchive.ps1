@@ -113,8 +113,15 @@ Process {
             Write-Output -InputObject "[APPLICATION: $($App.IntuneAppName)] - Initializing"
 
             try {
-                # Compress current app publish folder path
-                $AppArchiveFileName = -join@($App.IntuneAppName.Replace(" ", "_"), "_", $App.AppSetupVersion, ".zip")
+                # Compress current app publish folder path into archive file, added replace to remove invalid characters from file name
+                $illegalCharsPattern = '[\\/:*?"<>|]'   # Define the regex pattern for illegal characters
+                $cleanedAppName = $App.IntuneAppName -replace $illegalCharsPattern, ''   # Remove illegal characters by replacing them with an empty string
+                $cleanedAppName = $cleanedAppName -replace '\s+', '_'   # Replace consecutive whitespace characters with a single underscore
+                
+                $AppArchiveFileName = '{0}_{1}.zip' -f $cleanedAppName, $App.AppSetupVersion   # Concatenate the cleaned app name, app setup version, and the .zip extension
+                # The resulting filename will be in the format: "CleanedAppName_AppSetupVersion.zip"
+                
+                #OLD# $AppArchiveFileName = -join@($App.IntuneAppName.Replace(" ", "_"), "_", $App.AppSetupVersion, ".zip")
                 $AppArchiveFilePath = Join-Path -Path $AppsPublishRootPath -ChildPath $AppArchiveFileName
                 Write-Output -InputObject "Compressing path '$($App.AppPublishFolderPath)' into file: $($AppArchiveFileName)"
                 Compress-Archive -Path "$($App.AppPublishFolderPath)\*" -DestinationPath $AppArchiveFilePath -ErrorAction "Stop"

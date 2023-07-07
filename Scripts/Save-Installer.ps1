@@ -36,7 +36,7 @@ Process {
             [parameter(Mandatory = $true, HelpMessage = "Specify the download path.")]
             [ValidateNotNullOrEmpty()]
             [string]$Path,
-
+    
             [parameter(Mandatory = $true, HelpMessage = "Specify the output file name of downloaded file.")]
             [ValidateNotNullOrEmpty()]
             [string]$Name
@@ -44,15 +44,27 @@ Process {
         Begin {
             # Force usage of TLS 1.2 connection
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-
+    
             # Disable the Invoke-WebRequest progress bar for faster downloads
             $ProgressPreference = [System.Management.Automation.ActionPreference]::SilentlyContinue
+    
+            # Create the WebRequestSession object
+            $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+    
+            # Set the custom user agent
+            $session.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+    
+            # Download installer file with retry
+            $retryCount = 0
+            $retryLimit = 5
+            $downloadSuccess = $false
+            
         }
         Process {
             # Create path if it doesn't exist
-            if (-not(Test-Path -Path $Path -PathType "Container")) {
+            if (-not (Test-Path -Path $Path -PathType "Container")) {
                 Write-Output -InputObject "Attempting to create provided path: $($Path)"
-
+    
                 try {
                     $NewPath = New-Item -Path $Path -ItemType "Container" -ErrorAction "Stop"
                 }
@@ -60,14 +72,34 @@ Process {
                     throw "$($MyInvocation.MyCommand): Failed to create '$($Path)' with error message: $($_.Exception.Message)"
                 }
             }
-
-            # Download installer file
-            try {
-                $OutFilePath = Join-Path -Path $Path -ChildPath $Name
-                Invoke-WebRequest -Uri $URI -OutFile $OutFilePath -UseBasicParsing -ErrorAction "Stop"
-            }
-            catch [System.Exception] {
-                throw "$($MyInvocation.MyCommand): Failed to download file from '$($URI)' with error message: $($_.Exception.Message)"
+            # Download installer file with retry
+    
+            while ($retryCount -lt $retryLimit -and -not $downloadSuccess) {
+                try {
+                    $OutFilePath = Join-Path -Path $Path -ChildPath $Name
+            
+                    if ($session -and $session.UserAgent) {
+                        # Make the request using Invoke-WebRequest with the WebRequestSession and custom headers
+                        Invoke-WebRequest -Uri $URI -OutFile $OutFilePath -UseBasicParsing -WebSession $session -ErrorAction "Stop"
+                    }
+                    else {
+                        # Make the request using Invoke-WebRequest without custom headers
+                        Invoke-WebRequest -Uri $URI -OutFile $OutFilePath -UseBasicParsing -ErrorAction "Stop"
+                    }
+            
+                    $downloadSuccess = $true
+                }
+                catch [System.Net.WebException] {
+                    $retryCount++
+            
+                    if ($retryCount -lt $retryLimit) {
+                        Write-Output -InputObject "Failed to download file from '$($URI)'. Retrying in 5 seconds (attempt $($retryCount) of $($retryLimit))..."
+                        Start-Sleep -Seconds 5
+                    }
+                    else {
+                        throw "$($MyInvocation.MyCommand): Failed to download file from '$($URI)' after $($retryLimit) attempts with error message: $($_.Exception.Message)"
+                    }
+                }
             }
         }
     }

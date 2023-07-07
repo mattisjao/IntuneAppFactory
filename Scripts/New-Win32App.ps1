@@ -431,7 +431,7 @@ Process {
                                     "KeyPath" = $DetectionRuleItem.KeyPath
                                     "ValueName" = $DetectionRuleItem.ValueName
                                     "VersionComparisonOperator" = $DetectionRuleItem.Operator
-                                    "VersionComparisonValue" = $DetectionRuleItem.Value
+                                    "VersionComparisonValue" = $AppData.Information.AppVersion
                                     "Check32BitOn64System" = [System.Convert]::ToBoolean($DetectionRuleItem.Check32BitOn64System)
                                 }
                             }
@@ -567,10 +567,14 @@ Process {
             if (-not([string]::IsNullOrEmpty($AppData.Program.UninstallCommand))) {
                 $Win32AppArgs.Add("UninstallCommandLine", $AppData.Program.UninstallCommand)
             }
+            #if (-not([string]::IsNullOrEmpty($AppData.Program.AllowAvailableUninstall))) {
+            #    if ($AppData.Program.AllowAvailableUninstall -eq $true) {
+            #        $Win32AppArgs.Add("AllowAvailableUninstall", $true)
+            #    }
+            #}
             if (-not([string]::IsNullOrEmpty($AppData.Program.AllowAvailableUninstall))) {
-                if ($AppData.Program.AllowAvailableUninstall -eq $true) {
-                    $Win32AppArgs.Add("AllowAvailableUninstall", $true)
-                }
+                $allowUninstall = [bool]::Parse($AppData.Program.AllowAvailableUninstall)
+                $Win32AppArgs.Add("AllowAvailableUninstall", $allowUninstall)
             }
 
             # Create Win32 app

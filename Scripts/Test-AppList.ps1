@@ -91,7 +91,7 @@ Process {
             $AppResult = $true
         
             # Test if provided id exists in the winget repo
-            [string[]]$WinGetArguments = @("search", "$($AppId)")
+            [string[]]$WinGetArguments = @("search", "--exact", "--accept-source-agreements", "$($AppId)")
             [string[]]$WinGetStream = & "winget" $WinGetArguments | Out-String -Stream
             foreach ($RowItem in $WinGetStream) {
                 if ($RowItem -eq "No package found matching input criteria.") {
@@ -101,7 +101,7 @@ Process {
         
             if ($AppResult -eq $true) {
                 # Show winget package details for provided id and capture output
-                [string[]]$WinGetArguments = @("show", "$($AppId)")
+                [string[]]$WinGetArguments = @("show", "--exact", "--accept-source-agreements", "$($AppId)")
                 [string[]]$WinGetStream = & "winget" $WinGetArguments | Out-String -Stream
         
                 # Construct custom object for return value
@@ -118,7 +118,7 @@ Process {
                 Write-Warning -Message "No package found matching specified id: $($AppId)"
             }
         }
-    }
+    }    
 
     function Get-AzureBlobContent {
         param(
