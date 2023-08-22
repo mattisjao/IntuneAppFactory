@@ -1,7 +1,9 @@
 # Release notes for IntuneAppFactory
 ## 1.0.3
 
+- Changed the Publish.yml pipeline file to not use a self-hosted agent, but rather use the hosted agent pool. This change was made to make it easier for anyone to use the pipeline, without having to setup a self-hosted agent. To get this to function propably we needed to download and publish artifacts through all the different stages.
 - Added functionality to add configuration files and pre-required software or other Additional Files.
+- Added support for using the `AdditionalFiles` attribute in the App.json manifest file. These files will now be downloaded from the storage blob container and added to the package folder under "\Source\Files\*.
 
 ## 1.0.2
 - Switched download method used for app source type of StorageAccount from using Invoke-WebRequest to Az.Storage module in the `Save-Installer.ps1` script. This was forgotten when 1.0.1 was released, and would not work if public access to the Storage Account was disabled. This change also requires an update to the publish.yml pipeline file, where the Storage Account Key is passed in as parameter.
