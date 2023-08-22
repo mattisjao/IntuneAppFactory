@@ -1,4 +1,7 @@
 # Release notes for IntuneAppFactory
+## 1.0.3
+
+- Added functionality to add configuration files and pre-required software or other Additional Files.
 
 ## 1.0.2
 - Switched download method used for app source type of StorageAccount from using Invoke-WebRequest to Az.Storage module in the `Save-Installer.ps1` script. This was forgotten when 1.0.1 was released, and would not work if public access to the Storage Account was disabled. This change also requires an update to the publish.yml pipeline file, where the Storage Account Key is passed in as parameter.
