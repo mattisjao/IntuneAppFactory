@@ -171,6 +171,7 @@ Process {
     # Intitialize variables
     $AppsPrepareListFileName = "AppsPrepareList.json"
     $AppsPrepareListFilePath = Join-Path -Path $env:BUILD_BINARIESDIRECTORY -ChildPath $AppsPrepareListFileName
+    $SourceDirectory = $env:BUILD_SOURCESDIRECTORY
 
     # Read content from AppsDownloadList.json file created in previous stage
     $AppsDownloadListFileName = "AppsDownloadList.json"
@@ -203,6 +204,15 @@ Process {
                 }
                 Write-Output -InputObject "Successfully downloaded installer"
 
+                # Download AdditionalFiles if specified
+                $AppListPath = Join-Path -Path $SourceDirectory -ChildPath "appList.json"
+                $AppList = Get-Content -Path $AppListPath -ErrorAction "Stop" | ConvertFrom-Json | Select-Object -ExpandProperty 'Apps' | Group-Object -Property IntuneAppName -AsString -AsHashtable
+
+                $AppList[$App.IntuneAppName].AdditionalFiles | ForEach-Object {
+                    Write-Output -InputObject "Attempting to download '$($_)' from: $($APP.URI)"
+                    Get-StorageAccountBlobContent -StorageAccountName $App.StorageAccountName -ContainerName $App.StorageAccountContainerName -BlobName $_ -Path $AppSetupFolderPath -NewName $_ -ErrorAction "Stop"
+                }
+
                 # Validate setup installer was successfully downloaded
                 $AppSetupFilePath = Join-Path -Path $AppSetupFolderPath -ChildPath $App.AppSetupFileName
                 if (Test-Path -Path $AppSetupFilePath) {
@@ -210,12 +220,12 @@ Process {
 
                     # Construct new application custom object with required properties
                     $AppListItem = [PSCustomObject]@{
-                        "IntuneAppName" = $App.IntuneAppName
-                        "AppPublisher" = $App.AppPublisher
-                        "AppFolderName" = $App.AppFolderName
-                        "AppSetupFileName" = $App.AppSetupFileName
+                        "IntuneAppName"      = $App.IntuneAppName
+                        "AppPublisher"       = $App.AppPublisher
+                        "AppFolderName"      = $App.AppFolderName
+                        "AppSetupFileName"   = $App.AppSetupFileName
                         "AppSetupFolderPath" = $AppSetupFolderPath
-                        "AppSetupVersion" = $App.AppSetupVersion
+                        "AppSetupVersion"    = $App.AppSetupVersion
                     }
 
                     # Add to list of applications to be prepared for publishing

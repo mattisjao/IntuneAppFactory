@@ -45,14 +45,14 @@ Process {
             [parameter(Mandatory = $true)]
             [ValidateNotNullOrEmpty()]
             [string]$AppId,
-    
+
             [parameter(Mandatory = $true)]
             [ValidateNotNullOrEmpty()]
             [System.Object[]]$FilterOptions
         )
         # Construct array list to build the dynamic filter list
         $FilterList = New-Object -TypeName "System.Collections.ArrayList"
-    
+
         # Process known filter properties and add them to array list if present on current object
         if ($FilterOptions.Architecture) {
             $FilterList.Add("`$PSItem.Architecture -eq ""$($FilterOptions.Architecture)""") | Out-Null
@@ -69,13 +69,13 @@ Process {
         if ($FilterOptions.InstallerType) {
             $FilterList.Add("`$PSItem.InstallerType -eq ""$($FilterOptions.InstallerType)""") | Out-Null
         }
-    
+
         # Construct script block from filter list array
         $FilterExpression = [scriptblock]::Create(($FilterList -join " -and "))
-        
+
         # Get the evergreen app based on dynamic filter list
         $EvergreenApp = Get-EvergreenApp -Name $AppId | Where-Object -FilterScript $FilterExpression
-        
+
         # Handle return value
         return $EvergreenApp
     }
@@ -89,28 +89,28 @@ Process {
         process {
             # Initialize variables
             $AppResult = $true
-        
+
             # Test if provided id exists in the winget repo
-            [string[]]$WinGetArguments = @("search", "--exact", "--accept-source-agreements", "$($AppId)")
+            [string[]]$WinGetArguments = @("search", "--accept-source-agreements", "$($AppId)", "--exact")
             [string[]]$WinGetStream = & "winget" $WinGetArguments | Out-String -Stream
             foreach ($RowItem in $WinGetStream) {
                 if ($RowItem -eq "No package found matching input criteria.") {
                     $AppResult = $false
                 }
             }
-        
+
             if ($AppResult -eq $true) {
                 # Show winget package details for provided id and capture output
-                [string[]]$WinGetArguments = @("show", "--exact", "--accept-source-agreements", "$($AppId)")
+                [string[]]$WinGetArguments = @("show", "--accept-source-agreements","--scope", "Machine", "$($AppId)")
                 [string[]]$WinGetStream = & "winget" $WinGetArguments | Out-String -Stream
-        
+
                 # Construct custom object for return value
                 $PSObject = [PSCustomObject]@{
                     "Id" = $AppId
                     "Version" = ($WinGetStream | Where-Object { $PSItem -match "^Version\:.*(?<AppVersion>(\d+(\.\d+){0,3}))$" }).Replace("Version:", "").Trim()
                     "URI" = (($WinGetStream | Where-Object { $PSItem -match "^.*(Download|Installer) Url\:.*$" }) -replace "(Download|Installer) Url:", "").Trim()
                 }
-        
+
                 # Handle return value
                 return $PSObject
             }
@@ -118,22 +118,22 @@ Process {
                 Write-Warning -Message "No package found matching specified id: $($AppId)"
             }
         }
-    }    
+    }
 
     function Get-AzureBlobContent {
         param(
             [parameter(Mandatory = $true, HelpMessage = "Existing context of the Azure Storage Account.")]
             [ValidateNotNullOrEmpty()]
             [System.Object]$StorageAccountContext,
-    
+
             [parameter(Mandatory = $true, HelpMessage = "Name of the Azure Storage Blob container.")]
             [ValidateNotNullOrEmpty()]
             [string]$ContainerName
         )
-        try {   
+        try {
             # Construct array list for return value containing file names
             $BlobList = New-Object -TypeName "System.Collections.ArrayList"
-    
+
             try {
                 # Retrieve content from storage account blob
                 $StorageBlobContents = Get-AzStorageBlob -Container $ContainerName -Context $StorageAccountContext -ErrorAction Stop
@@ -143,7 +143,7 @@ Process {
                         $BlobList.Add($StorageBlobContent) | Out-Null
                     }
                 }
-    
+
                 # Handle return value
                 return $BlobList
             }
@@ -161,7 +161,7 @@ Process {
             [parameter(Mandatory = $true, HelpMessage = "Specify the storage account name.")]
             [ValidateNotNullOrEmpty()]
             [string]$StorageAccountName,
-    
+
             [parameter(Mandatory = $true, HelpMessage = "Specify the storage account container name.")]
             [ValidateNotNullOrEmpty()]
             [string]$ContainerName
@@ -169,7 +169,7 @@ Process {
         process {
             # Create storage account context using access key
             $StorageAccountContext = New-AzStorageContext -StorageAccountName $StorageAccountName -StorageAccountKey $StorageAccountAccessKey
-    
+
             # Retrieve all storage account blob items in container
             $BlobItems = Get-AzureBlobContent -StorageAccountContext $StorageAccountContext -ContainerName $ContainerName
             if ($BlobItems -ne $null) {
@@ -181,13 +181,13 @@ Process {
                     if (-not(Test-Path -Path $LatestSetupFileDestination)) {
                         New-Item -Path $LatestSetupFileDestination -ItemType "Directory" | Out-Null
                     }
-    
+
                     # Retrieve the latest.json file content and convert from JSON
                     $LatestSetupFile = Get-AzStorageBlobContent -Context $StorageAccountContext -Container $ContainerName -Blob "latest.json" -Destination $LatestSetupFileDestination -Force
                     $LatestSetupFilePath = Join-Path -Path $LatestSetupFileDestination -ChildPath "latest.json"
                     if (Test-Path -Path $LatestSetupFilePath) {
                         $LatestSetupFileContent = Get-Content -Path $LatestSetupFilePath | ConvertFrom-Json
-    
+
                         # Get the latest modified setup file
                         $BlobItem = $BlobItems | Where-Object { (([System.IO.Path]::GetExtension($PSItem.Name)) -match ".msi|.exe|.zip") -and ($PSItem.Name -like $LatestSetupFileContent.SetupName) } | Sort-Object -Property "LastModified" -Descending | Select-Object -First 1
                         if ($BlobItem -ne $null) {
@@ -197,7 +197,7 @@ Process {
                                 "URI" = -join@($StorageAccountContext.BlobEndPoint, $ContainerName, "/", $BlobItem.Name)
                                 "BlobName" = $BlobItem.Name
                             }
-            
+
                             # Handle return value
                             return $PSObject
                         }
@@ -290,7 +290,7 @@ Process {
                                 Write-Output -InputObject "Latest version: $($AppItem.Version)"
                                 Write-Output -InputObject "Published version: $($Win32AppLatestPublishedVersion)"
                                 Write-Output -InputObject "Adding application to download list"
-                                
+
                                 # Mark new application version to be published
                                 $AppDownload = $true
                             }
@@ -346,7 +346,7 @@ Process {
             catch [System.Exception] {
                 Write-Output -InputObject "##vso[task.setvariable variable=shouldrun;isOutput=true]false"
                 Write-Warning -Message "Failed to retrieve app source details using method '$($App.AppSource)' for app: $($App.IntuneAppName). Error message: $($_.Exception.Message)"
-                
+
                 # Handle current application output completed message
                 Write-Output -InputObject "[APPLICATION: $($App.IntuneAppName)] - Skipped"
             }

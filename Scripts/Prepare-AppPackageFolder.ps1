@@ -73,6 +73,22 @@ Process {
             Write-Output -InputObject "Destination path: $($AppInstallerDestinationPath)"
             Copy-Item -Path $AppInstallerPath -Destination $AppInstallerDestinationPath -Force -Confirm:$false
 
+            # Copy AdditionalFiles to AppPublishFolder
+            $AppListPath = Join-Path -Path $SourceDirectory -ChildPath "appList.json"
+            Write-Output -InputObject "applistpath = $AppListPath"
+            $AppList = Get-Content -Path $AppListPath -ErrorAction "Stop" | ConvertFrom-Json | Select-Object -ExpandProperty Apps | Group-Object -Property IntuneAppName -AsString -AsHashtable
+            write-output -inputobject "applist = $AppList"
+            write-output -inputobject "app = $($AppList[$App.IntuneAppName])"
+            write-output -inputobject "app.AdditionalFiles = $($AppList[$App.IntuneAppName].AdditionalFiles)"
+            ##$AppList[$App.IntuneAppName].AdditionalFiles | ForEach-Object {
+            ##    Copy-Item -Path "$($App.AppSetupFolderPath)\$_" -Destination $AppInstallerDestinationPath -Force -Confirm:$false 
+            ##}            
+
+            foreach ($AdditionalFile in $AppList[$App.IntuneAppName].AdditionalFiles) {
+                Write-Output -InputObject "Copying additional file from app package download folder: $($AdditionalFile)"
+                Copy-Item -Path "$($App.AppSetupFolderPath)\$AdditionalFile" -Destination $AppsPublishSourceFilesPath -Force -Confirm:$false 
+            }
+
             # Copy all required app specific files from app package folder in Apps root folder to publish folder
             $AppPackageFolderPath = Join-Path -Path $SourceDirectory -ChildPath "Apps\$($App.AppFolderName)"
             $AppFileNames = $AppFileNames = @("App.json", "Deploy-Application.ps1", "Icon.png")
