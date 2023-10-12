@@ -27,6 +27,18 @@
                     "Type": "exe"
                 }
             ]
+        },
+        {
+            "IntuneAppName": "MindManager 23",
+            "AppPublisher": "Mindjet",
+            "AppSource": "StorageAccount",
+            "AppID": "",
+            "AppFolderName" : "MindManager 23",
+            "AppSetupFileName": "MindManager 23.msi",
+            "AdditionalFiles": [ "example.config", "vcredist_2015_x64.exe"],
+            "StorageAccountName": "StorageAccountName",
+            "StorageAccountContainerName": "mindmanager23"
         }
+        
     ]
 }
