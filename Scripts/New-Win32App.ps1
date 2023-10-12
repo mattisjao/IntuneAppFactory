@@ -158,7 +158,7 @@ Process {
             $AppDataFile = Join-Path -Path $App.AppPublishFolderPath -ChildPath "App.json"
             $AppData = Get-Content -Path $AppDataFile | ConvertFrom-Json
 
-            # Required packaging variablesg
+            # Required packaging variables
             $SourceFolder = Join-Path -Path $App.AppPublishFolderPath -ChildPath $AppData.PackageInformation.SourceFolder
             Write-Output -InputObject "Using Source folder path: $($SourceFolder)"
             $OutputFolder = Join-Path -Path $App.AppPublishFolderPath -ChildPath $AppData.PackageInformation.OutputFolder

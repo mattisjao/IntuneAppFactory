@@ -97,6 +97,7 @@ Process {
                     "AppId" = if (-not([string]::IsNullOrEmpty($App.AppId))) { $App.AppId } else { [string]::Empty }
                     "AppFolderName" = $App.AppFolderName
                     "AppSetupFileName" = $App.AppSetupFileName
+                    "AdditionalFiles" = if (-not([string]::IsNullOrEmpty($App.AdditionalFiles))) { $App.AdditionalFiles } else { [string]::Empty }
                     "FilterOptions" =  $App.FilterOptions
                     "StorageAccountName" = if (-not([string]::IsNullOrEmpty($App.StorageAccountName))) { $App.StorageAccountName } else { [string]::Empty }
                     "StorageAccountContainerName" = if (-not([string]::IsNullOrEmpty($App.StorageAccountContainerName))) { $App.StorageAccountContainerName } else { [string]::Empty }

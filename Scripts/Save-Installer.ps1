@@ -204,19 +204,20 @@ Process {
                 }
                 Write-Output -InputObject "Successfully downloaded installer"
 
-                # Download AdditionalFiles if specified
-                $AppListPath = Join-Path -Path $SourceDirectory -ChildPath "appList.json"
-                $AppList = Get-Content -Path $AppListPath -ErrorAction "Stop" | ConvertFrom-Json | Select-Object -ExpandProperty 'Apps' | Group-Object -Property IntuneAppName -AsString -AsHashtable
-
-                $AppList[$App.IntuneAppName].AdditionalFiles | ForEach-Object {
-                    Write-Output -InputObject "Attempting to download '$($_)' from: $($APP.URI)"
-                    Get-StorageAccountBlobContent -StorageAccountName $App.StorageAccountName -ContainerName $App.StorageAccountContainerName -BlobName $_ -Path $AppSetupFolderPath -NewName $_ -ErrorAction "Stop"
+                # Save additional files
+                if ($App.AdditionalFiles -ne $null -and $App.AdditionalFiles.Count -gt 0) {
+                    $App.AdditionalFiles | ForEach-Object {
+                        if (-not [string]::IsNullOrWhiteSpace($_)) {
+                            Write-Output -InputObject "Attempting to download AdditionalFiles '$_' from: $($App.StorageAccountContainerName)"
+                            Get-StorageAccountBlobContent -StorageAccountName $App.StorageAccountName -ContainerName $App.StorageAccountContainerName -BlobName $_ -Path $AppSetupFolderPath -NewName $_ -ErrorAction "Stop"
+                        }
+                    }
                 }
+
 
                 # Validate setup installer was successfully downloaded
                 $AppSetupFilePath = Join-Path -Path $AppSetupFolderPath -ChildPath $App.AppSetupFileName
                 if (Test-Path -Path $AppSetupFilePath) {
-                    Write-Output -InputObject "Successfully downloaded installer"
 
                     # Construct new application custom object with required properties
                     $AppListItem = [PSCustomObject]@{

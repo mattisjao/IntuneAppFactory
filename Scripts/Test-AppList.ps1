@@ -87,35 +87,66 @@ Process {
             [string]$AppId
         )
         process {
-            # Initialize variables
-            $AppResult = $true
-
-            # Test if provided id exists in the winget repo
-            [string[]]$WinGetArguments = @("search", "--accept-source-agreements", "$($AppId)", "--exact")
-            [string[]]$WinGetStream = & "winget" $WinGetArguments | Out-String -Stream
-            foreach ($RowItem in $WinGetStream) {
-                if ($RowItem -eq "No package found matching input criteria.") {
-                    $AppResult = $false
-                }
-            }
-
-            if ($AppResult -eq $true) {
-                # Show winget package details for provided id and capture output
-                [string[]]$WinGetArguments = @("show", "--accept-source-agreements","--scope", "Machine", "$($AppId)")
+            try {
+                # Initialize variables
+                $AppResult = $true
+    
+                # Test if provided id exists in the winget repo
+                [string[]]$WinGetArguments = @("search", "--accept-source-agreements", "$($AppId)", "--exact")
                 [string[]]$WinGetStream = & "winget" $WinGetArguments | Out-String -Stream
-
-                # Construct custom object for return value
-                $PSObject = [PSCustomObject]@{
-                    "Id" = $AppId
-                    "Version" = ($WinGetStream | Where-Object { $PSItem -match "^Version\:.*(?<AppVersion>(\d+(\.\d+){0,3}))$" }).Replace("Version:", "").Trim()
-                    "URI" = (($WinGetStream | Where-Object { $PSItem -match "^.*(Download|Installer) Url\:.*$" }) -replace "(Download|Installer) Url:", "").Trim()
+                foreach ($RowItem in $WinGetStream) {
+                    if ($RowItem -eq "No package found matching input criteria.") {
+                        $AppResult = $false
+                    }
                 }
-
-                # Handle return value
-                return $PSObject
+    
+                if ($AppResult -eq $true) {
+                    try {
+                        # Show winget package details for provided id and capture output
+                        [string[]]$WinGetArguments = @("show", "--accept-source-agreements", "--scope", "Machine", "$($AppId)")
+                        [string[]]$WinGetStream = & "winget" $WinGetArguments | Out-String -Stream
+    
+                        # Use regex to check if "No applicable installer found" message is present in $WinGetStream
+                        $InstallerMessage = $WinGetStream -join "`n" -match "(?s)Installer:(.*?)(`n\s*No applicable installer found)" -replace "`r?`n", "`n"
+    
+                        if ($InstallerMessage -eq $null) {
+                            # Construct custom object for return value
+                            $PSObject = [PSCustomObject]@{
+                                "Id"      = $AppId
+                                "Version" = ($WinGetStream | Where-Object { $PSItem -match "^Version\:.*(?<AppVersion>(\d+(\.\d+){0,3}))$" }).Replace("Version:", "").Trim()
+                                "URI"     = (($WinGetStream | Where-Object { $PSItem -match "^.*(Download|Installer) Url\:.*$" }) -replace "(Download|Installer) Url:", "").Trim()
+                            }
+    
+                            # Handle return value
+                            return $PSObject
+                        } else {
+                            Write-Warning -Message "No applicable installer found for ID: $($AppId). Trying without --scope Machine."
+    
+                            # Try without the "--scope Machine" argument
+                            [string[]]$WinGetArguments = @("show", "--accept-source-agreements", "$($AppId)")
+                            [string[]]$WinGetStream = & "winget" $WinGetArguments | Out-String -Stream
+    
+                            # Construct custom object for return value
+                            $PSObject = [PSCustomObject]@{
+                                "Id"      = $AppId
+                                "Version" = ($WinGetStream | Where-Object { $PSItem -match "^Version\:.*(?<AppVersion>(\d+(\.\d+){0,3}))$" }).Replace("Version:", "").Trim()
+                                "URI"     = (($WinGetStream | Where-Object { $PSItem -match "^.*(Download|Installer) Url\:.*$" }) -replace "(Download|Installer) Url:", "").Trim()
+                            }
+    
+                            # Handle return value
+                            return $PSObject
+                        }
+                    }
+                    catch {
+                        Write-Error -Message "An error occurred while getting package details: $_"
+                    }
+                }
+                else {
+                    Write-Warning -Message "No package found matching specified id: $($AppId)"
+                }
             }
-            else {
-                Write-Warning -Message "No package found matching specified id: $($AppId)"
+            catch {
+                Write-Error -Message "An error occurred: $_"
             }
         }
     }
@@ -193,8 +224,8 @@ Process {
                         if ($BlobItem -ne $null) {
                             # Construct custom object for return value
                             $PSObject = [PSCustomObject]@{
-                                "Version" = $LatestSetupFileContent.SetupVersion
-                                "URI" = -join@($StorageAccountContext.BlobEndPoint, $ContainerName, "/", $BlobItem.Name)
+                                "Version"  = $LatestSetupFileContent.SetupVersion
+                                "URI"      = -join @($StorageAccountContext.BlobEndPoint, $ContainerName, "/", $BlobItem.Name)
                                 "BlobName" = $BlobItem.Name
                             }
 
@@ -309,17 +340,18 @@ Process {
                         if ($AppDownload -eq $true) {
                             # Construct new application custom object with required properties
                             $AppListItem = [PSCustomObject]@{
-                                "IntuneAppName" = $App.IntuneAppName
-                                "AppPublisher" = $App.AppPublisher
-                                "AppSource" = $App.AppSource
-                                "AppId" = $App.AppId
-                                "AppFolderName" = $App.AppFolderName
-                                "AppSetupFileName" = $App.AppSetupFileName
-                                "AppSetupVersion" = $AppItem.Version
-                                "URI" = $AppItem.URI
-                                "StorageAccountName" = if (-not([string]::IsNullOrEmpty($App.StorageAccountName))) { $App.StorageAccountName } else { [string]::Empty }
+                                "IntuneAppName"               = $App.IntuneAppName
+                                "AppPublisher"                = $App.AppPublisher
+                                "AppSource"                   = $App.AppSource
+                                "AppId"                       = $App.AppId
+                                "AppFolderName"               = $App.AppFolderName
+                                "AppSetupFileName"            = $App.AppSetupFileName
+                                "AdditionalFiles"             = if (-not([string]::IsNullOrEmpty($App.AdditionalFiles))) { $App.AdditionalFiles } else { [string]::Empty }
+                                "AppSetupVersion"             = $AppItem.Version
+                                "URI"                         = $AppItem.URI
+                                "StorageAccountName"          = if (-not([string]::IsNullOrEmpty($App.StorageAccountName))) { $App.StorageAccountName } else { [string]::Empty }
                                 "StorageAccountContainerName" = if (-not([string]::IsNullOrEmpty($App.StorageAccountContainerName))) { $App.StorageAccountContainerName } else { [string]::Empty }
-                                "BlobName" = if ($AppItem.BlobName -ne $null) { $AppItem.BlobName } else { [string]::Empty }
+                                "BlobName"                    = if ($AppItem.BlobName -ne $null) { $AppItem.BlobName } else { [string]::Empty }
                             }
 
                             # Add to list of applications to be published
@@ -353,12 +385,21 @@ Process {
         }
 
         # Construct new json file with new applications to be published
-        if ($AppsDownloadList.Count -ge 1) {
-            $AppsDownloadListJSON = $AppsDownloadList | ConvertTo-Json -Depth 3
-            Write-Output -InputObject "Creating '$($AppsDownloadListFileName)' in: $($AppsDownloadListFilePath)"
-            Write-Output -InputObject "App list file contains the following items: $($AppsDownloadList.IntuneAppName -join ", ")"
-            Out-File -InputObject $AppsDownloadListJSON -FilePath $AppsDownloadListFilePath -NoClobber -Force
+        try {
+            
+            if ($AppsDownloadList.Count -ge 1) {
+                $AppsDownloadListJSON = $AppsDownloadList | ConvertTo-Json -Depth 3
+                Write-Output -InputObject "Creating '$($AppsDownloadListFileName)' in: $($AppsDownloadListFilePath)"
+                Out-File -InputObject $AppsDownloadListJSON -FilePath $AppsDownloadListFilePath -NoClobber -Force -ErrorAction "Stop"
+                Write-Output -InputObject "App list file contains the following items: $($AppsDownloadList.IntuneAppName -join ", ")"
+            }
+            
         }
+        catch {
+            Write-Output -InputObject "##vso[task.setvariable variable=shouldrun;isOutput=true]false"
+            throw "$($MyInvocation.MyCommand): Failed to construct AppsDownloadList.json: $($_.Exception.Message)"
+        }
+  
 
         # Handle next stage execution or not if no new applications are to be published
         if ($AppsDownloadList.Count -eq 0) {
@@ -368,6 +409,7 @@ Process {
         }
         else {
             # Allow pipeline to continue
+            Write-Output -InputObject "New applications to be published, continuing pipeline"
             Write-Output -InputObject "##vso[task.setvariable variable=shouldrun;isOutput=true]true"
         }
     }
@@ -375,4 +417,5 @@ Process {
         Write-Output -InputObject "##vso[task.setvariable variable=shouldrun;isOutput=true]false"
         throw "$($MyInvocation.MyCommand): Failed to retrieve authentication token with error message: $($_.Exception.Message)"
     }
+    exit 0
 }
